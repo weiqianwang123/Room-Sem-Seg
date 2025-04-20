@@ -78,23 +78,45 @@ def generate_density(point_cloud, wall_lines, width=256, height=256):
     density[unique_coords[:, 1], unique_coords[:, 0]] = counts
     density /= np.max(density)  # 归一化
 
-    # ✅ 添加墙壁信息
-    density += (wall_mask * np.max(density) / 10).astype(np.float32)
+    # # ✅ 添加墙壁信息
+    density += (wall_mask * np.max(density)/5).astype(np.float32)
+    density = density / np.max(density)
 
     return density, wall_mask, normalization_dict
 
 # ---------- 保存 PNG ----------
-def save_density_as_png(density_map, output_path, cmap="hot"):
-    plt.imsave(output_path, density_map, cmap=cmap)
-    print(f"Density map saved as PNG at {output_path}")
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
 
-    density_image = (density_map * 255).astype(np.uint8)
-    Image.fromarray(density_image).save(output_path.replace(".png", "_gray.png"))
-    print(f"Density map (grayscale) saved at {output_path.replace('.png', '_gray.png')}")
+def save_density_as_png(density_map, output_path, cmap="hot"):
+    """
+    保存三种格式的 density map：
+    1) 彩色（热力图）  
+    2) 灰度（黑底，密度大为白）  
+    3) 白底灰度（将灰度反转，密度大为黑）
+    """
+    # 1) 彩色热力图
+    plt.imsave(output_path, density_map, cmap=cmap)
+    print(f"Density map (color) saved at {output_path}")
+
+    # 2) 灰度（黑底）
+    gray = (density_map * 255).astype(np.uint8)
+    gray_path = output_path.replace(".png", "_gray.png")
+    Image.fromarray(gray).save(gray_path)
+    print(f"Density map (grayscale, black background) saved at {gray_path}")
+
+    # 3) 白底灰度（反转灰度）
+    inv = (255 - gray).astype(np.uint8)
+    white_bg_path = output_path.replace(".png", "_whitebg.png")
+    # 如果希望保存为 RGB，可以再转：
+    Image.fromarray(inv).convert("RGB").save(white_bg_path)
+    print(f"Density map (grayscale, white background) saved at {white_bg_path}")
+
 
 # ---------- 主程序 ----------
 def main():
-    ply_file = "/home/qianwei/SpatialLM/pcd/test_set/17DRP5sb8fy/house_segmentations/17DRP5sb8fy.ply"
+    ply_file = "/home/qianwei/SpatialLM/pcd/test_set/q9vSo1VnCiC/house_segmentations/q9vSo1VnCiC.ply"
     txt_file = "/home/qianwei/SpatialLM/test.txt"
 
     pcd = o3d.io.read_point_cloud(ply_file)
@@ -108,7 +130,7 @@ def main():
     density, wall_mask, normalization_dict = generate_density(point_cloud, wall_lines, width=256, height=256)
 
     # 保存图像
-    output_path = "/home/qianwei/SpatialLM/density.png"
+    output_path = "/home/qianwei/Room-Sem-Seg/vis_and_eval/density.png"
     save_density_as_png(density, output_path)
 
 if __name__ == "__main__":
